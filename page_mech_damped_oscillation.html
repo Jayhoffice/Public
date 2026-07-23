@@ -1,0 +1,531 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <title>Damped Harmonic Oscillator</title>
+
+  <script>
+    window.MathJax = {
+      tex: {
+        inlineMath: [['\\(', '\\)'], ['$', '$']],
+        displayMath: [['\\[', '\\]']]
+      },
+      svg: {
+        fontCache: 'global'
+      }
+    };
+  </script>
+  <script async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js"></script>
+
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 0;
+      background: #f5f5f5;
+      font-size: 19.2px;
+    }
+
+    .page {
+      display: grid;
+      grid-template-columns: 430px 920px;
+      gap: 24px;
+      align-items: start;
+      max-width: 1400px;
+      margin: 24px auto;
+      padding: 0 20px;
+      box-sizing: border-box;
+    }
+
+    .left-panel {
+      background: white;
+      border: 1px solid #ccc;
+      border-radius: 12px;
+      padding: 22px 24px;
+      box-sizing: border-box;
+      min-height: 500px;
+    }
+
+    .right-panel {
+      background: white;
+      border: 1px solid #ccc;
+      border-radius: 12px;
+      padding: 16px;
+      box-sizing: border-box;
+    }
+
+    h1 {
+      margin: 0 0 18px 0;
+      font-size: 32px;
+      line-height: 1.25;
+    }
+
+    .section-title {
+      font-weight: bold;
+      margin-top: 18px;
+      margin-bottom: 6px;
+    }
+
+    .equation {
+      line-height: 1.6;
+      margin-bottom: 18px;
+    }
+
+    .equation mjx-container[jax="SVG"][display="true"] {
+      margin: 8px 0;
+    }
+
+    .controls {
+      display: grid;
+      grid-template-columns: 120px 1fr 90px;
+      gap: 10px;
+      align-items: center;
+      margin-top: 10px;
+      margin-bottom: 16px;
+    }
+
+    input[type="range"] {
+      width: 100%;
+    }
+
+    button {
+      padding: 10px 18px;
+      margin-top: 8px;
+      margin-right: 8px;
+      cursor: pointer;
+      font-size: 19.2px;
+    }
+
+    .status {
+      margin-top: 18px;
+      line-height: 1.8;
+      border-top: 1px solid #ddd;
+      padding-top: 14px;
+    }
+
+    .canvas-wrapper {
+      position: relative;
+      width: 900px;
+    }
+
+    canvas {
+      background: white;
+      border: 1px solid #bbb;
+      display: block;
+    }
+
+    .graph-title {
+      position: absolute;
+      left: 72px;
+      top: 287px;
+      font-size: 22px;
+      background: rgba(255,255,255,0.85);
+      padding: 2px 6px;
+      pointer-events: none;
+    }
+
+    .canvas-info {
+      position: absolute;
+      top: 58px;
+      right: 24px;
+      width: 250px;
+      font-size: 22px;
+      line-height: 1.7;
+      background: rgba(255,255,255,0.85);
+      padding: 8px 12px;
+      border-radius: 8px;
+      pointer-events: none;
+    }
+
+    .canvas-info .row {
+      display: flex;
+      align-items: baseline;
+      gap: 6px;
+      margin-bottom: 2px;
+    }
+
+    .num {
+      font-family: Arial, sans-serif;
+      font-size: 22px;
+    }
+
+    .time-labels {
+      width: 900px;
+      display: flex;
+      justify-content: space-between;
+      margin-top: 6px;
+      padding: 0 72px 0 70px;
+      box-sizing: border-box;
+      font-size: 18px;
+    }
+
+    @media (max-width: 1350px) {
+      .page {
+        grid-template-columns: 1fr;
+        max-width: 960px;
+      }
+
+      .left-panel,
+      .right-panel {
+        width: 100%;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <div class="left-panel">
+      <h1>감쇠조화운동 시뮬레이션</h1>
+
+      <div class="equation">
+        <div class="section-title">운동 방정식</div>
+        \[
+          m\ddot{x} + c\dot{x} + kx = 0
+        \]
+
+        <div class="section-title">계산식</div>
+        \[
+          \dot{x} = v,\qquad
+          \dot{v} = -\frac{c}{m}v - \frac{k}{m}x
+        \]
+      </div>
+
+      <div class="section-title">변수 조절</div>
+
+      <div class="controls">
+        <label>질량 \(m\)</label>
+        <input id="mass" type="range" min="0.2" max="5" step="0.1" value="1">
+        <span id="massValue">1.0 kg</span>
+
+        <label>용수철상수 \(k\)</label>
+        <input id="spring" type="range" min="1" max="80" step="1" value="20">
+        <span id="springValue">20 N/m</span>
+
+        <label>감쇠계수 \(c\)</label>
+        <input id="damping" type="range" min="0" max="30" step="0.1" value="1">
+        <span id="dampingValue">1.0 kg/s</span>
+      </div>
+
+      <button id="resetBtn">초기화</button>
+      <button id="pauseBtn">재생</button>
+
+      <div class="status" id="status"></div>
+    </div>
+
+    <div class="right-panel">
+      <div class="canvas-wrapper">
+        <canvas id="canvas" width="900" height="500"></canvas>
+
+        <div class="graph-title">
+          \(x\text{-}t\ \mathrm{graph}\)
+        </div>
+
+        <div class="canvas-info">
+          <div class="row"><span>\(x=\)</span><span class="num" id="xValueText">1.500</span><span>\(\mathrm{m}\)</span></div>
+          <div class="row"><span>\(v=\)</span><span class="num" id="vValueText">0.000</span><span>\(\mathrm{m/s}\)</span></div>
+          <div class="row"><span>\(m=\)</span><span class="num" id="mValueText">1.0</span><span>\(\mathrm{kg}\)</span></div>
+          <div class="row"><span>\(k=\)</span><span class="num" id="kValueText">20</span><span>\(\mathrm{N/m}\)</span></div>
+          <div class="row"><span>\(c=\)</span><span class="num" id="cValueText">1.0</span><span>\(\mathrm{kg/s}\)</span></div>
+        </div>
+      </div>
+
+      <div class="time-labels">
+        <div>\(t=0\)</div>
+        <div>\(t=\)<span id="tNowNumber">0.0</span>\(\,\mathrm{s}\)</div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const canvas = document.getElementById("canvas");
+    const ctx = canvas.getContext("2d");
+
+    const massSlider = document.getElementById("mass");
+    const springSlider = document.getElementById("spring");
+    const dampingSlider = document.getElementById("damping");
+
+    const massValue = document.getElementById("massValue");
+    const springValue = document.getElementById("springValue");
+    const dampingValue = document.getElementById("dampingValue");
+    const statusText = document.getElementById("status");
+
+    const xValueText = document.getElementById("xValueText");
+    const vValueText = document.getElementById("vValueText");
+    const mValueText = document.getElementById("mValueText");
+    const kValueText = document.getElementById("kValueText");
+    const cValueText = document.getElementById("cValueText");
+    const tNowNumber = document.getElementById("tNowNumber");
+
+    const resetBtn = document.getElementById("resetBtn");
+    const pauseBtn = document.getElementById("pauseBtn");
+
+    let m, k, c;
+
+    let x = 1.5;
+    let v = 0.0;
+
+    let simTime = 0;
+    let history = [{ t: 0, x: x }];
+
+    let lastTime = null;
+    let isPaused = true;
+
+    function typesetElement(el) {
+      if (window.MathJax && window.MathJax.typesetPromise) {
+        MathJax.typesetClear([el]);
+        MathJax.typesetPromise([el]).catch(() => {});
+      }
+    }
+
+    function updateValuePanel() {
+      xValueText.textContent = x.toFixed(3);
+      vValueText.textContent = v.toFixed(3);
+      mValueText.textContent = m.toFixed(1);
+      kValueText.textContent = k.toFixed(0);
+      cValueText.textContent = c.toFixed(1);
+      tNowNumber.textContent = simTime.toFixed(1);
+    }
+
+    function updateParameters() {
+      m = Number(massSlider.value);
+      k = Number(springSlider.value);
+      c = Number(dampingSlider.value);
+
+      massValue.textContent = `${m.toFixed(1)} kg`;
+      springValue.textContent = `${k.toFixed(0)} N/m`;
+      dampingValue.textContent = `${c.toFixed(1)} kg/s`;
+
+      const omega0 = Math.sqrt(k / m);
+      const criticalC = 2 * Math.sqrt(m * k);
+
+      let dampingType;
+
+      if (c < criticalC - 0.1) {
+        dampingType = "과소감쇠: 진동하면서 진폭이 줄어듦";
+      } else if (Math.abs(c - criticalC) <= 0.1) {
+        dampingType = "임계감쇠: 진동 없이 가장 빠르게 평형으로 감";
+      } else {
+        dampingType = "과대감쇠: 진동 없이 천천히 평형으로 감";
+      }
+
+      statusText.innerHTML = `
+        <div>
+          \\(\\omega_0 = \\sqrt{\\frac{k}{m}} = ${omega0.toFixed(2)}\\,\\mathrm{rad/s}\\)
+        </div>
+        <div>
+          \\(c_{\\mathrm{critical}} = 2\\sqrt{mk} = ${criticalC.toFixed(2)}\\,\\mathrm{kg/s}\\)
+        </div>
+        <div>
+          현재 상태: <b>${dampingType}</b>
+        </div>
+      `;
+
+      typesetElement(statusText);
+      updateValuePanel();
+    }
+
+    massSlider.addEventListener("input", updateParameters);
+    springSlider.addEventListener("input", updateParameters);
+    dampingSlider.addEventListener("input", updateParameters);
+
+resetBtn.addEventListener("click", () => {
+  x = 1.5;
+  v = 0.0;
+  simTime = 0;
+  history = [{ t: 0, x: x }];
+  lastTime = null;
+
+  isPaused = true;
+  pauseBtn.textContent = "재생";
+
+  updateValuePanel();
+  draw();
+});
+
+    pauseBtn.addEventListener("click", () => {
+      isPaused = !isPaused;
+
+      if (isPaused) {
+        pauseBtn.textContent = "재생";
+      } else {
+        pauseBtn.textContent = "정지";
+        lastTime = null;
+      }
+    });
+
+    function acceleration(x, v) {
+      return -(c / m) * v - (k / m) * x;
+    }
+
+    function rk4(dt) {
+      function dxdt(x, v) {
+        return v;
+      }
+
+      function dvdt(x, v) {
+        return acceleration(x, v);
+      }
+
+      const k1x = dxdt(x, v);
+      const k1v = dvdt(x, v);
+
+      const k2x = dxdt(x + 0.5 * dt * k1x, v + 0.5 * dt * k1v);
+      const k2v = dvdt(x + 0.5 * dt * k1x, v + 0.5 * dt * k1v);
+
+      const k3x = dxdt(x + 0.5 * dt * k2x, v + 0.5 * dt * k2v);
+      const k3v = dvdt(x + 0.5 * dt * k2x, v + 0.5 * dt * k2v);
+
+      const k4x = dxdt(x + dt * k3x, v + dt * k3v);
+      const k4v = dvdt(x + dt * k3x, v + dt * k3v);
+
+      x += (dt / 6) * (k1x + 2 * k2x + 2 * k3x + k4x);
+      v += (dt / 6) * (k1v + 2 * k2v + 2 * k3v + k4v);
+    }
+
+    function drawSpring(x1, x2, y) {
+      const coils = 14;
+      const amp = 18;
+      const length = x2 - x1;
+      const step = length / (coils * 2);
+
+      ctx.beginPath();
+      ctx.moveTo(x1, y);
+
+      for (let i = 1; i <= coils * 2; i++) {
+        const px = x1 + i * step;
+        const py = y + (i % 2 === 0 ? -amp : amp);
+        ctx.lineTo(px, py);
+      }
+
+      ctx.lineTo(x2, y);
+      ctx.stroke();
+    }
+
+    function drawGraph() {
+      const graphX = 70;
+      const graphY = 320;
+      const graphW = 760;
+      const graphH = 130;
+      const midY = graphY + graphH / 2;
+
+      ctx.lineWidth = 1;
+      ctx.strokeRect(graphX, graphY, graphW, graphH);
+
+      ctx.beginPath();
+      ctx.moveTo(graphX, midY);
+      ctx.lineTo(graphX + graphW, midY);
+      ctx.stroke();
+
+      if (history.length < 2) return;
+
+      const tMax = history[history.length - 1].t;
+      const safeTMax = Math.max(tMax, 0.001);
+
+      ctx.beginPath();
+
+      for (let i = 0; i < history.length; i++) {
+        const px = graphX + (history[i].t / safeTMax) * graphW;
+        const py = midY - history[i].x * 35;
+
+        if (i === 0) {
+          ctx.moveTo(px, py);
+        } else {
+          ctx.lineTo(px, py);
+        }
+      }
+
+      ctx.lineWidth = 2;
+      ctx.stroke();
+    }
+
+    function draw() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      ctx.font = "22px Arial";
+
+      const wallX = 80;
+      const equilibriumX = 450;
+      const y = 170;
+
+      const scale = 120;
+      const massW = 70;
+      const massH = 60;
+
+      const massCenterX = equilibriumX + x * scale;
+      const massLeftX = massCenterX - massW / 2;
+
+      // 벽
+      ctx.lineWidth = 4;
+      ctx.beginPath();
+      ctx.moveTo(wallX, 80);
+      ctx.lineTo(wallX, 260);
+      ctx.stroke();
+
+      // 평형 위치
+      ctx.lineWidth = 1;
+      ctx.setLineDash([6, 6]);
+      ctx.beginPath();
+      ctx.moveTo(equilibriumX, 80);
+      ctx.lineTo(equilibriumX, 260);
+      ctx.stroke();
+      ctx.setLineDash([]);
+
+      ctx.fillText("평형 위치", equilibriumX - 48, 70);
+
+      // 용수철
+      ctx.lineWidth = 2;
+      drawSpring(wallX, massLeftX, y);
+
+      // 물체
+      ctx.fillRect(massLeftX, y - massH / 2, massW, massH);
+      ctx.strokeRect(massLeftX, y - massH / 2, massW, massH);
+
+      ctx.fillText("m", massCenterX - 8, y + 8);
+
+      // 바닥
+      ctx.beginPath();
+      ctx.moveTo(50, y + massH / 2);
+      ctx.lineTo(850, y + massH / 2);
+      ctx.stroke();
+
+      drawGraph();
+    }
+
+    function animate(timestamp) {
+      if (lastTime === null) {
+        lastTime = timestamp;
+      }
+
+      let dt = (timestamp - lastTime) / 1000;
+      lastTime = timestamp;
+
+      if (!isPaused) {
+        dt = Math.min(dt, 0.03);
+
+        const subSteps = 5;
+        for (let i = 0; i < subSteps; i++) {
+          rk4(dt / subSteps);
+        }
+
+        simTime += dt;
+        history.push({ t: simTime, x: x });
+      }
+
+      updateValuePanel();
+      draw();
+      requestAnimationFrame(animate);
+    }
+
+    window.addEventListener("load", () => {
+      if (window.MathJax && window.MathJax.typesetPromise) {
+        MathJax.typesetPromise().then(() => {
+          updateParameters();
+          requestAnimationFrame(animate);
+        });
+      } else {
+        updateParameters();
+        requestAnimationFrame(animate);
+      }
+    });
+  </script>
+</body>
+</html>
