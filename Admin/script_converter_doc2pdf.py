@@ -18,14 +18,14 @@ Microsoft Word 자체 PDF 변환 기능으로 pdf로 저장합니다.
 ■ 주의
     - 변환 중 Word 창이 화면에 나타났다 사라지는 것이 반복될 수 있음(정상 동작).
       HIDE_WORD_WINDOW = True 로 두면 창을 숨겨서 이 깜빡임을 없앨 수 있음.
-    - 인터넷에서 받은 파일(다운로드 표시가 붙은 파일)은 Word가 "보호된 보기"로 열면서
-      자동화가 멈출 수 있음. 이 경우는 이 스크립트로는 못 잡음 — Word 신뢰 센터 설정에서
-      "보호된 보기"를 끄거나, 파일 속성에서 차단 해제를 해야 함.
     - 파일이 아주 많으면(수백 개) 그만큼 시간이 걸림 — 진행 창에 몇 번째 파일인지 표시됨.
     - 파일이 들어있는 폴더 경로에 공백이 있으면 Word의 COM 자동화가 파일을 못 찾는
       것으로 오작동하는 경우가 있어(경로를 URL로 잘못 해석하는 것으로 추정), Open에
       넘기는 경로만 짧은(8.3) 경로로 변환해 이 문제를 회피함. 저장되는 pdf 파일명은
       원래 이름 그대로 유지됨(짧은 경로는 여는 동작에만 사용, 저장 경로는 원래 경로 사용).
+    - 인터넷에서 받은 파일(다운로드 표시가 붙은 파일)은 Word가 "보호된 보기"로 열면서
+      자동화가 막히는 경우가 있어, 여는 것을 시도하기 전에 그 표시(Zone.Identifier)를
+      자동으로 지움. 표시가 원래 없는 파일은 그냥 조용히 넘어감.
 """
 import os
 import tkinter as tk
@@ -51,6 +51,17 @@ WD_EXPORT_ALL_DOCUMENT = 0    # wdExportAllDocument (문서 전체)
 WD_ALERTS_NONE = 0            # wdAlertsNone
 
 
+def unblock_file(path):
+    """윈도우가 인터넷에서 받은 파일에 몰래 붙이는 "차단" 표시(Zone.Identifier)를 지운다.
+    이 표시가 있으면 Word가 파일을 "보호된 보기"로 열면서 자동화가 막힐 수 있다.
+    (탐색기에서 파일 속성 > "차단 해제" 체크박스를 누르는 것과 동일한 동작)
+    표시가 애초에 없는 파일이 대부분이라, 그 경우 조용히 넘어간다."""
+    try:
+        os.remove(path + ':Zone.Identifier')
+    except OSError:
+        pass
+
+
 def convert_files(files, status_var, bar, progress_win):
     """선택된 doc/docx 파일들을 pdf로 변환. (성공목록, 실패목록) 반환"""
     bar['maximum'] = len(files)
@@ -62,9 +73,12 @@ def convert_files(files, status_var, bar, progress_win):
 
     try:
         for i, src in enumerate(files, 1):
+            src = os.path.abspath(src)
             name = os.path.basename(src)
             status_var.set(f"({i}/{len(files)}) {name}")
             progress_win.update()
+
+            unblock_file(src)
 
             pdf_path = os.path.splitext(src)[0] + '.pdf'
 
