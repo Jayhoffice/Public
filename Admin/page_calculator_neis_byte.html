@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>NEIS Byte Checker</title>
+  <style>
+    body {
+      max-width: 850px;
+      margin: 40px auto;
+      padding: 0 20px;
+      font-family: Arial, "Noto Sans KR", sans-serif;
+      color: #202124;
+    }
+    h1 {
+      margin-bottom: 8px;
+      font-size: 28px;
+    }
+    .description {
+      margin-bottom: 20px;
+      color: #5f6368;
+      line-height: 1.6;
+    }
+    textarea {
+      box-sizing: border-box;
+      width: 100%;
+      height: 340px;
+      padding: 16px;
+      border: 1px solid #dadce0;
+      border-radius: 8px;
+      font-family: inherit;
+      font-size: 16px;
+      line-height: 1.6;
+      resize: vertical;
+    }
+    textarea:focus {
+      outline: 2px solid #1a73e8;
+      border-color: transparent;
+    }
+    .result {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-top: 16px;
+      padding: 18px 20px;
+      background: #f1f3f4;
+      border-radius: 8px;
+    }
+    .byte-count {
+      font-size: 26px;
+      font-weight: bold;
+    }
+    .over {
+      color: #d93025;
+    }
+    button {
+      margin-top: 16px;
+      padding: 10px 18px;
+      border: 0;
+      border-radius: 6px;
+      background: #5f6368;
+      color: white;
+      font-size: 15px;
+      cursor: pointer;
+    }
+    button:hover {
+      background: #3c4043;
+    }
+    .privacy {
+      margin-top: 20px;
+      color: #5f6368;
+      font-size: 13px;
+    }
+    .modal-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(32, 33, 36, 0.6);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+    }
+    .modal-box {
+      background: white;
+      border-radius: 10px;
+      padding: 28px 24px;
+      width: 90%;
+      max-width: 360px;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+      text-align: center;
+    }
+    .modal-box p {
+      margin: 0 0 16px;
+      font-size: 16px;
+      color: #202124;
+      line-height: 1.5;
+    }
+    .modal-row {
+      display: flex;
+      gap: 8px;
+    }
+    .modal-row input[type="number"] {
+      flex: 1;
+      box-sizing: border-box;
+      padding: 10px 12px;
+      border: 1px solid #dadce0;
+      border-radius: 6px;
+      font-size: 16px;
+    }
+    .modal-row input[type="number"]:focus {
+      outline: 2px solid #1a73e8;
+      border-color: transparent;
+    }
+    .modal-row button {
+      margin-top: 0;
+      background: #1a73e8;
+      white-space: nowrap;
+    }
+    .modal-row button:hover {
+      background: #1558b0;
+    }
+  </style>
+</head>
+<body>
+  <div class="modal-overlay" id="thresholdOverlay">
+    <div class="modal-box">
+      <p>몇 바이트 이상인 경우 빨간색으로 표시할까요?</p>
+      <div class="modal-row">
+        <input
+          type="number"
+          id="thresholdInput"
+          min="1"
+          placeholder="예:1500"
+        >
+        <button type="button" id="thresholdSubmit">입력</button>
+      </div>
+    </div>
+  </div>
+  <h1>NEIS Byte Checker</h1>
+  <div class="description">
+    아래 칸에 세부능력 및 특기사항 내용을 입력하세요.<br>
+    입력한 내용은 저장되거나 다른 학생에게 공개되지 않습니다.
+  </div>
+  <textarea
+    id="content"
+    placeholder="여기에 세특 내용을 입력하세요."
+    autocomplete="off"
+    spellcheck="false"
+  ></textarea>
+  <div class="result">
+    <span>현재 입력 분량</span>
+    <span
+      id="byteCount"
+      class="byte-count"
+      aria-live="polite"
+    >
+      0 Byte
+    </span>
+  </div>
+  <button type="button" onclick="clearText()">
+    전체 지우기
+  </button>
+  <div class="privacy">
+    이 페이지는 입력 내용을 서버나 스프레드시트에 저장하지 않습니다.
+  </div>
+  <script>
+    const textarea = document.getElementById('content');
+    const byteCount = document.getElementById('byteCount');
+    const overlay = document.getElementById('thresholdOverlay');
+    const thresholdInput = document.getElementById('thresholdInput');
+    const thresholdSubmit = document.getElementById('thresholdSubmit');
+    let limit = 2000;
+    function calculateBytes(text) {
+      return new TextEncoder().encode(text).length;
+    }
+    function updateByteCount() {
+      const bytes = calculateBytes(textarea.value);
+      byteCount.textContent =
+        bytes.toLocaleString('ko-KR') + ' Byte';
+      byteCount.classList.toggle('over', bytes > limit);
+    }
+    function clearText() {
+      textarea.value = '';
+      updateByteCount();
+      textarea.focus();
+    }
+    function applyThreshold() {
+      const value = parseInt(thresholdInput.value, 10);
+      if (!Number.isInteger(value) || value <= 0) {
+        alert('1 이상의 숫자를 입력해주세요.');
+        thresholdInput.focus();
+        return;
+      }
+      limit = value;
+      overlay.style.display = 'none';
+      updateByteCount();
+      textarea.focus();
+    }
+    thresholdSubmit.addEventListener('click', applyThreshold);
+    thresholdInput.addEventListener('keydown', function (e) {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        applyThreshold();
+      }
+    });
+    textarea.addEventListener('input', updateByteCount);
+  </script>
+</body>
+</html>
